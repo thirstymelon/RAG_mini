@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Nexus — Intelligence Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #09090b;
+            --sidebar: #020202;
+            --surface: #18181b;
+            --surface-hover: #27272a;
+            --border: #27272a;
+            --border-bright: #3f3f46;
+            --accent: #3b82f6;
+            --accent-soft: rgba(59, 130, 246, 0.1);
+            --text: #fafafa;
+            --text-muted: #a1a1aa;
+            --text-dim: #71717a;
+            --radius: 8px;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: grid;
+            place-items: center;
+        }
+
+        .logo-text {
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-section {
+            padding: 20px 12px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0 8px 12px;
+        }
+
+        .upload-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .upload-card:hover {
+            border-color: var(--border-bright);
+            background: var(--surface-hover);
+        }
+
+        .upload-card p {
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: var(--radius);
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .doc-item:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .doc-item.active {
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .doc-icon {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            width: 32px;
+            height: 24px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        /* Main Area */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            min-width: 0; /* Important for flex child with overflow */
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 20px 160px;
+        }
+
+        .chat-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        .message {
+            display: flex;
+            gap: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-role {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            width: 60px;
+            padding-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .msg-content {
+            flex: 1;
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--text-muted);
+            min-width: 0;
+            word-wrap: break-word;
+        }
+
+        .user .msg-content {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        /* Markdown Styling */
+        .msg-content p { margin-bottom: 1em; }
+        .msg-content h1, .msg-content h2, .msg-content h3 { color: var(--text); margin: 1.5em 0 0.5em; }
+        .msg-content ul, .msg-content ol { margin-left: 1.5em; margin-bottom: 1em; }
+        .msg-content li { margin-bottom: 0.5em; }
+        .msg-content mark {
+            background: var(--accent-soft);
+            color: var(--accent);
+            padding: 0 4px;
+            border-radius: 2px;
+        }
+
+        .sources {
+            margin-top: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .source-pill {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .source-pill:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        /* Input */
+        .input-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 800px;
+            padding: 0 20px;
+        }
+
+        .input-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        #q-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 15px;
+            padding: 2px 0;
+            resize: none;
+            max-height: 200px;
+            min-height: 24px;
+        }
+
+        .send-icon {
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 4px;
+        }
+
+        .send-icon:hover { color: var(--accent); }
+
+        /* Welcome */
+        .welcome {
+            text-align: center;
+            padding: 60px 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .welcome h1 { font-size: 32px; font-weight: 600; margin-bottom: 12px; }
+        .welcome p { font-size: 15px; color: var(--text-dim); line-height: 1.6; }
+        .hints { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 40px; }
+        .hint-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 14px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: left;
+        }
+        .hint-item:hover { border-color: var(--accent); color: var(--text); }
+
+        /* Toast & Modal */
+        #toasts { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+        .toast { background: var(--surface); border: 1px solid var(--border); padding: 12px 20px; border-radius: var(--radius); font-size: 13px; }
+        
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+            display: none; place-items: center; z-index: 1000; padding: 20px;
+        }
+        .modal {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 12px;
+            width: 100%; max-width: 700px; max-height: 80vh; display: flex; flex-direction: column;
+        }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 24px; overflow-y: auto; font-size: 14px; line-height: 1.8; color: var(--text-muted); }
+
+        .typing-dots { display: flex; gap: 4px; padding: 10px 0; }
+        .typing-dots span { width: 4px; height: 4px; background: var(--accent); border-radius: 50%; animation: pulse 1.4s infinite; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 8v8M8 12h8"/>
+                </svg>
+            </div>
+            <span class="logo-text">Nexus</span>
+        </div>
+
+        <div class="nav-section">
+            <div class="upload-card" onclick="document.getElementById('file-input').click()">
+                <input type="file" id="file-input" multiple accept=".pdf,.docx,.pptx,.txt,.md" style="display:none"/>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                <p>Upload Documents</p>
+            </div>
+
+            <div class="section-label">Knowledge Base</div>
+            <div id="doc-list"></div>
+        </div>
+
+        <div style="padding: 16px; border-top: 1px solid var(--border)">
+            <button onclick="clearAll()" style="width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:var(--radius); color:var(--text-dim); font-size:12px; cursor:pointer">Clear Knowledge Base</button>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="chat-area" id="chat">
+            <div class="welcome" id="welcome">
+                <h1>Nexus Intelligence</h1>
+                <p>Connect your documents. Extract insights instantly. No cloud, 100% private.</p>
+                <div class="hints">
+                    <div class="hint-item" onclick="useHint(this)">Explain the month-by-month roadmap.</div>
+                    <div class="hint-item" onclick="useHint(this)">What are the core skill requirements?</div>
+                </div>
+            </div>
+            <div class="chat-wrapper" id="chat-wrapper"></div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-box">
+                <textarea id="q-input" rows="1" placeholder="Ask Nexus..." maxlength="2000"></textarea>
+                <div class="send-icon" onclick="ask()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal">
+            <div class="modal-header">
+                <div id="modal-title" style="font-weight:600; font-size:14px">Source Fragment</div>
+                <div style="cursor:pointer; color:var(--text-dim)" onclick="closeModal()">&times;</div>
+            </div>
+            <div class="modal-body" id="modal-content"></div>
+        </div>
+    </div>
+
+    <div id="toasts"></div>
+
+    <script>
+        let docs = [];
+        let busy = false;
+        let selected = new Set();
+
+        const chatWrapper = document.getElementById('chat-wrapper');
+        const qInput = document.getElementById('q-input');
+        const welcome = document.getElementById('welcome');
+
+        // Init
+        async function init() {
+            await loadDocs();
+            qInput.addEventListener('input', () => {
+                qInput.style.height = 'auto';
+                qInput.style.height = Math.min(qInput.scrollHeight, 200) + 'px';
+            });
+            qInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    ask();
+                }
+            });
+        }
+
+        async function loadDocs() {
+            try {
+                const res = await fetch('/api/documents');
+                const data = await res.json();
+                docs = data.documents || [];
+                renderDocs();
+            } catch(e) {}
+        }
+
+        function renderDocs() {
+            const list = document.getElementById('doc-list');
+            list.innerHTML = '';
+            docs.forEach(doc => {
+                const ext = doc.name.split('.').pop().toUpperCase();
+                const item = document.createElement('div');
+                item.className = `doc-item ${selected.has(doc.name) ? 'active' : ''}`;
+                item.onclick = () => toggleDoc(doc.name);
+                item.innerHTML = `
+                    <div class="doc-icon">${ext}</div>
+                    <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${doc.name}</div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function toggleDoc(name) {
+            if (selected.has(name)) selected.delete(name);
+            else selected.add(name);
+            renderDocs();
+        }
+
+        async function clearAll() {
+            if (!confirm("Clear all documents?")) return;
+            await fetch('/api/clear', {method:'POST'});
+            selected.clear();
+            await loadDocs();
+        }
+
+        const fileInput = document.getElementById('file-input');
+        fileInput.onchange = async () => {
+            const files = fileInput.files;
+            if (!files.length) return;
+            const fd = new FormData();
+            for (const f of files) fd.append('files', f);
+            toast("Indexing documents...");
+            try {
+                await fetch('/api/upload', {method:'POST', body:fd});
+                await loadDocs();
+                toast("Indexing complete", "success");
+            } catch(e) { toast("Upload failed", "error"); }
+            fileInput.value = '';
+        }
+
+        async function ask() {
+            const question = qInput.value.trim();
+            if (!question || busy) return;
+
+            welcome.style.display = 'none';
+            addMessage('user', question);
+            qInput.value = '';
+            qInput.style.height = 'auto';
+            
+            const loading = addLoading();
+            busy = true;
+
+            try {
+                const res = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        question,
+                        doc_filter: selected.size ? Array.from(selected) : null
+                    })
+                });
+                const data = await res.json();
+                loading.remove();
+                addMessage('bot', data.answer, data.sources);
+            } catch(e) {
+                loading.remove();
+                addMessage('bot', "Connection error. Ensure server is running.");
+            } finally {
+                busy = false;
+                scrollToBottom();
+            }
+        }
+
+        function addMessage(role, text, sources = []) {
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            
+            const sourcesHtml = sources.length ? `
+                <div class="sources">
+                    ${sources.slice(0, 4).map(s => `
+                        <div class="source-pill" onclick='showSource(${JSON.stringify(s).replace(/'/g, "&apos;")})'>
+                            ${s.document} (${s.relevance}%)
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            msg.innerHTML = `
+                <div class="msg-role">${role === 'user' ? 'You' : 'Nexus'}</div>
+                <div class="msg-content">
+                    <div class="markdown-body">${role === 'bot' ? marked.parse(text) : text}</div>
+                    ${sourcesHtml}
+                </div>
+            `;
+            chatWrapper.appendChild(msg);
+            scrollToBottom();
+        }
+
+        function addLoading() {
+            const msg = document.createElement('div');
+            msg.className = 'message bot';
+            msg.innerHTML = `
+                <div class="msg-role">Nexus</div>
+                <div class="msg-content">
+                    <div class="typing-dots"><span></span><span></span><span></span></div>
+                </div>
+            `;
+            chatWrapper.appendChild(msg);
+            scrollToBottom();
+            return msg;
+        }
+
+        function scrollToBottom() {
+            const chatArea = document.getElementById('chat');
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function useHint(el) {
+            qInput.value = el.innerText;
+            qInput.focus();
+            qInput.style.height = qInput.scrollHeight + 'px';
+        }
+
+        function showSource(s) {
+            document.getElementById('modal-title').innerText = `${s.document} (Page ${s.page_hint})`;
+            document.getElementById('modal-content').innerText = s.excerpt;
+            document.getElementById('modal-overlay').style.display = 'grid';
+        }
+
+        function closeModal(e) {
+            if (!e || e.target === document.getElementById('modal-overlay') || e.target.innerText === '×') {
+                document.getElementById('modal-overlay').style.display = 'none';
+            }
+        }
+
+        function toast(msg, type = 'info') {
+            const container = document.getElementById('toasts');
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.style.borderLeft = `4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : 'var(--accent)'}`;
+            t.innerText = msg;
+            container.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
